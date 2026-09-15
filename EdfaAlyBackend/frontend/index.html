@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EdfaAly API Console</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#161922; --panel-2:#1d212c; --border:#2a2f3d;
+    --text:#e6e8ee; --muted:#8890a3; --accent:#4f8cff; --accent-2:#2ecc9c;
+    --danger:#ff5d6c; --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    font-size:14px;
+  }
+  header{
+    padding:16px 24px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  }
+  header h1{font-size:16px; margin:0; font-weight:600; letter-spacing:.2px;}
+  header .sub{color:var(--muted); font-size:12px;}
+  header .conn{margin-left:auto; display:flex; gap:8px; align-items:center;}
+  input, select, textarea{
+    background:var(--panel-2); border:1px solid var(--border); color:var(--text);
+    border-radius:6px; padding:7px 9px; font-size:13px; font-family:inherit;
+    width:100%;
+  }
+  input:focus, select:focus, textarea:focus{outline:1px solid var(--accent);}
+  button{
+    background:var(--accent); color:#fff; border:none; border-radius:6px;
+    padding:7px 12px; font-size:13px; cursor:pointer; font-weight:500;
+  }
+  button.secondary{background:var(--panel-2); border:1px solid var(--border); color:var(--text);}
+  button.small{padding:4px 8px; font-size:12px;}
+  button:hover{opacity:.9;}
+  button:active{transform:translateY(1px);}
+  .layout{display:grid; grid-template-columns:minmax(340px,480px) 1fr; gap:0; height:calc(100vh - 57px);}
+  .cols{overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px;}
+  .log{background:#0a0b0e; border-left:1px solid var(--border); overflow-y:auto; padding:16px;}
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:14px;
+  }
+  .card h2{
+    font-size:13px; margin:0 0 10px 0; color:var(--text);
+    display:flex; align-items:center; gap:8px;
+  }
+  .card h2 .tag{
+    font-size:10px; padding:2px 6px; border-radius:4px; font-weight:600;
+    background:var(--panel-2); color:var(--muted);
+  }
+  .tag.rider{color:var(--accent-2);}
+  .tag.driver{color:var(--accent);}
+  .row{display:flex; gap:8px; margin-bottom:8px;}
+  .row > *{flex:1;}
+  .field{margin-bottom:8px;}
+  .field label{display:block; font-size:11px; color:var(--muted); margin-bottom:4px;}
+  .actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:4px;}
+  .status-pill{
+    font-family:var(--mono); font-size:12px; padding:6px 10px; border-radius:6px;
+    background:var(--panel-2); border:1px solid var(--border); color:var(--muted);
+  }
+  .status-pill.on{color:var(--accent-2); border-color:var(--accent-2);}
+  .entry{
+    border-bottom:1px solid var(--border); padding:10px 0; font-family:var(--mono); font-size:12px;
+  }
+  .entry .line1{display:flex; gap:8px; align-items:center; margin-bottom:4px;}
+  .method{font-weight:700; color:var(--accent);}
+  .method.POST{color:var(--accent-2);}
+  .path{color:var(--text);}
+  .code{margin-left:auto; padding:1px 6px; border-radius:4px; font-size:11px;}
+  .code.ok{background:rgba(46,204,156,.15); color:var(--accent-2);}
+  .code.err{background:rgba(255,93,108,.15); color:var(--danger);}
+  pre{
+    margin:0; white-space:pre-wrap; word-break:break-word; color:var(--muted);
+    max-height:220px; overflow-y:auto;
+  }
+  .empty{color:var(--muted); text-align:center; padding:40px 0; font-size:13px;}
+  .hint{color:var(--muted); font-size:11px; margin-top:6px; line-height:1.5;}
+  .divider{height:1px; background:var(--border); margin:4px 0;}
+  .quickrow{display:flex; gap:8px;}
+  .quickrow button{flex:1;}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>EdfaAly &mdash; API Console</h1>
+    <div class="sub">Simple demo front end for the backend. No frameworks, just fetch().</div>
+  </div>
+  <div class="conn">
+    <input id="baseUrl" style="width:220px" value="http://localhost:8080">
+    <span id="sessionPill" class="status-pill">not logged in</span>
+    <button class="secondary small" onclick="logout()">Logout</button>
+  </div>
+</header>
+
+<div class="layout">
+  <div class="cols">
+
+    <!-- AUTH -->
+    <div class="card">
+      <h2>Auth <span class="tag">/api/auth</span></h2>
+      <div class="quickrow" style="margin-bottom:10px;">
+        <button class="secondary" onclick="quickLogin('01000000001','driver')">Login as demo driver</button>
+        <button class="secondary" onclick="quickLogin('01000000002','rider')">Login as demo rider</button>
+      </div>
+      <div class="hint">Seeded accounts: 01000000001 / 01000000002, password <code>demo1234</code></div>
+      <div class="divider"></div>
+
+      <div class="row">
+        <div class="field"><label>Full name</label><input id="reg_fullName" value="Test User"></div>
+        <div class="field"><label>User type</label>
+          <select id="reg_userType" onchange="toggleLicensePlate()">
+            <option value="RIDER">RIDER</option>
+            <option value="DRIVER">DRIVER</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Phone number</label><input id="reg_phone" value="0110000000"></div>
+        <div class="field"><label>Password</label><input id="reg_password" type="text" value="pass1234"></div>
+      </div>
+      <div class="field" id="reg_plateField" style="display:none;">
+        <label>License plate (required for DRIVER)</label><input id="reg_plate" value="ABC123">
+      </div>
+      <div class="actions">
+        <button onclick="register()">Register</button>
+      </div>
+
+      <div class="divider" style="margin:12px 0;"></div>
+
+      <div class="row">
+        <div class="field"><label>Phone number</label><input id="login_phone" value="01000000002"></div>
+        <div class="field"><label>Password</label><input id="login_password" value="demo1234"></div>
+      </div>
+      <div class="actions"><button onclick="login()">Login</button></div>
+    </div>
+
+    <!-- DRIVER -->
+    <div class="card">
+      <h2>Driver <span class="tag driver">/api/driver</span></h2>
+      <div class="actions">
+        <button class="secondary" onclick="call('GET','/api/driver/profile')">Get profile</button>
+        <button class="secondary" onclick="call('GET','/api/driver/qrcode')">Get QR code</button>
+        <button class="secondary" onclick="call('POST','/api/driver/qrcode/regenerate')">Regenerate QR</button>
+      </div>
+    </div>
+
+    <!-- TRIPS -->
+    <div class="card">
+      <h2>Trips <span class="tag driver">/api/trips</span></h2>
+      <div class="row">
+        <div class="field"><label>From (optional)</label><input id="trip_from" value="Ramses"></div>
+        <div class="field"><label>To (optional)</label><input id="trip_to" value="Salam"></div>
+      </div>
+      <div class="actions">
+        <button onclick="startTrip()">Start trip</button>
+        <button class="secondary" onclick="call('GET','/api/trips/active')">Get active trip</button>
+        <button class="secondary" onclick="call('POST','/api/trips/end')">End trip</button>
+      </div>
+    </div>
+
+    <!-- PAYMENT -->
+    <div class="card">
+      <h2>Payment <span class="tag rider">/api/payment</span></h2>
+      <div class="field"><label>Manual code (driver short code or plate)</label><input id="pay_manualCode" value="ABC123"></div>
+      <div class="hint">Use the seeded driver's plate <code>DEMO123</code>, or the code shown by "Get QR code" above.</div>
+      <div class="actions" style="margin:8px 0;">
+        <button onclick="resolveDriver()">Resolve driver</button>
+      </div>
+      <div class="divider" style="margin:10px 0;"></div>
+      <div class="row">
+        <div class="field"><label>Driver ID</label><input id="pay_driverId" placeholder="filled after resolve"></div>
+        <div class="field"><label>Amount</label><input id="pay_amount" value="15"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Payment method</label>
+          <select id="pay_method">
+            <option value="WALLET">WALLET</option>
+            <option value="EXTERNAL_WALLET">EXTERNAL_WALLET</option>
+            <option value="INSTAPAY">INSTAPAY</option>
+          </select>
+        </div>
+        <div class="field"><label>Input type</label>
+          <select id="pay_inputType">
+            <option value="MANUAL_ID">MANUAL_ID</option>
+            <option value="QR_SCAN">QR_SCAN</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions"><button onclick="pay()">Pay</button></div>
+    </div>
+
+    <!-- WALLET -->
+    <div class="card">
+      <h2>Wallet <span class="tag">/api/wallet</span></h2>
+      <div class="actions" style="margin-bottom:10px;"><button class="secondary" onclick="call('GET','/api/wallet/balance')">Get balance</button></div>
+      <div class="divider" style="margin:10px 0;"></div>
+      <div class="row">
+        <div class="field"><label>Amount to add</label><input id="topup_amount" value="100"></div>
+      </div>
+      <div class="actions"><button onclick="topUp()">Dev top-up (demo only)</button></div>
+      <div class="hint">Mock endpoint for testing &mdash; adds fake balance to whoever is logged in. Not a real payment gateway.</div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="card">
+      <h2>History <span class="tag">/api/history</span></h2>
+      <div class="actions">
+        <button class="secondary" onclick="call('GET','/api/history/rider')">Rider history</button>
+        <button class="secondary" onclick="call('GET','/api/history/driver')">Driver history</button>
+      </div>
+    </div>
+
+    <!-- FEEDBACK -->
+    <div class="card">
+      <h2>Feedback <span class="tag rider">/api/feedback</span></h2>
+      <div class="row">
+        <div class="field"><label>Transaction ID</label><input id="fb_txId" placeholder="from a paid transaction"></div>
+        <div class="field"><label>Rating (1-5)</label><input id="fb_rating" value="5"></div>
+      </div>
+      <div class="field"><label>Comment</label><input id="fb_comment" value="Great ride!"></div>
+      <div class="actions">
+        <button onclick="submitFeedback()">Submit feedback</button>
+        <button class="secondary" onclick="call('GET','/api/feedback/driver')">My ratings (driver)</button>
+      </div>
+    </div>
+
+    <!-- NOTIFICATIONS -->
+    <div class="card">
+      <h2>Notifications <span class="tag">/api/notifications</span></h2>
+      <div class="actions"><button class="secondary" onclick="call('GET','/api/notifications')">Get notifications</button></div>
+    </div>
+
+  </div>
+
+  <div class="log" id="log">
+    <div class="empty">Responses will show up here. Try "Login as demo driver" first.</div>
+  </div>
+</div>
+
+<script>
+let token = null;
+let userType = null;
+let lastResolvedDriverId = null;
+
+function toggleLicensePlate(){
+  document.getElementById('reg_plateField').style.display =
+    document.getElementById('reg_userType').value === 'DRIVER' ? 'block' : 'none';
+}
+
+function base(){ return document.getElementById('baseUrl').value.replace(/\/$/,''); }
+
+function setSession(t, type, extra){
+  token = t; userType = type;
+  const pill = document.getElementById('sessionPill');
+  if (t){
+    pill.textContent = `logged in as ${type}${extra ? ' (' + extra + ')' : ''}`;
+    pill.classList.add('on');
+  } else {
+    pill.textContent = 'not logged in';
+    pill.classList.remove('on');
+  }
+}
+
+function logout(){ setSession(null, null); log('INFO','','logged out locally (token cleared)', 'ok'); }
+
+async function call(method, path, body){
+  const url = base() + path;
+  const headers = {'Content-Type':'application/json'};
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+
+  let res, data, text;
+  try{
+    res = await fetch(url, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined
+    });
+    text = await res.text();
+    try { data = text ? JSON.parse(text) : {}; } catch(e){ data = text; }
+  } catch(err){
+    log(method, path, 'Network error: ' + err.message, 'err');
+    throw err;
+  }
+
+  log(method, path, data, res.ok ? 'ok' : 'err', res.status);
+  if (!res.ok) throw new Error(typeof data === 'string' ? data : JSON.stringify(data));
+  return data;
+}
+
+function log(method, path, data, kind, code){
+  const container = document.getElementById('log');
+  const empty = container.querySelector('.empty');
+  if (empty) empty.remove();
+
+  const entry = document.createElement('div');
+  entry.className = 'entry';
+  const pretty = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+  entry.innerHTML = `
+    <div class="line1">
+      <span class="method ${method}">${method}</span>
+      <span class="path">${path}</span>
+      ${code ? `<span class="code ${kind}">${code}</span>` : ''}
+    </div>
+    <pre>${pretty.replace(/</g,'&lt;')}</pre>
+  `;
+  container.prepend(entry);
+}
+
+// ---- Auth ----
+async function register(){
+  const body = {
+    fullName: document.getElementById('reg_fullName').value,
+    phoneNumber: document.getElementById('reg_phone').value,
+    password: document.getElementById('reg_password').value,
+    userType: document.getElementById('reg_userType').value,
+  };
+  if (body.userType === 'DRIVER'){
+    body.licensePlate = document.getElementById('reg_plate').value;
+  }
+  try{
+    const data = await call('POST','/api/auth/register', body);
+    setSession(data.token, data.userType, data.driverShortCode);
+  } catch(e){}
+}
+
+async function login(){
+  const body = {
+    phoneNumber: document.getElementById('login_phone').value,
+    password: document.getElementById('login_password').value,
+  };
+  try{
+    const data = await call('POST','/api/auth/login', body);
+    setSession(data.token, data.userType, data.driverShortCode);
+  } catch(e){}
+}
+
+async function quickLogin(phone, type){
+  document.getElementById('login_phone').value = phone;
+  document.getElementById('login_password').value = 'demo1234';
+  await login();
+}
+
+// ---- Trips ----
+async function startTrip(){
+  const body = {
+    fromLocation: document.getElementById('trip_from').value || null,
+    toLocation: document.getElementById('trip_to').value || null,
+  };
+  await call('POST','/api/trips/start', body).catch(()=>{});
+}
+
+// ---- Payment ----
+async function resolveDriver(){
+  const manualCode = document.getElementById('pay_manualCode').value;
+  try{
+    const data = await call('POST','/api/payment/resolve-driver', { manualCode });
+    lastResolvedDriverId = data.driverId;
+    document.getElementById('pay_driverId').value = data.driverId;
+  } catch(e){}
+}
+
+async function pay(){
+  const body = {
+    driverId: Number(document.getElementById('pay_driverId').value),
+    amount: Number(document.getElementById('pay_amount').value),
+    paymentMethod: document.getElementById('pay_method').value,
+    inputType: document.getElementById('pay_inputType').value,
+    clientRequestId: 'demo-' + Date.now() + '-' + Math.random().toString(36).slice(2)
+  };
+  await call('POST','/api/payment/pay', body).catch(()=>{});
+}
+
+// ---- Wallet ----
+async function topUp(){
+  const body = { amount: Number(document.getElementById('topup_amount').value) };
+  await call('POST','/api/wallet/dev-topup', body).catch(()=>{});
+}
+
+// ---- Feedback ----
+async function submitFeedback(){
+  const body = {
+    transactionId: Number(document.getElementById('fb_txId').value),
+    rating: Number(document.getElementById('fb_rating').value),
+    comment: document.getElementById('fb_comment').value
+  };
+  await call('POST','/api/feedback', body).catch(()=>{});
+}
+</script>
+
+</body>
+</html>
